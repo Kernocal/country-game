@@ -21,7 +21,7 @@
 	}
 
 	onMount(() => {
-		d3.json('ne_50m_admin_countries.geo.json').then(function(bb) {
+		d3.json('data/ne_50m_admin_countries.geo.json').then(function(bb) {
 			for (let i = 0; i < bb.features.length; i++) {
 				countyNames = [...countyNames, bb.features[i].properties.sovereignt]
 			}
