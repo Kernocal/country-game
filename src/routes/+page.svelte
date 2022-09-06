@@ -1,64 +1,77 @@
 <script>
-	import { onMount } from 'svelte';
-	import * as d3 from 'd3';
-	import {transition} from 'd3-transition';
+	import jsonData from '$lib/data/ne_50m_admin_countries.geo.json';
+	// import testData from '$lib/data/test.json';
+	import {onMount} from 'svelte';
+	import {geoMercator, geoOrthographic, geoPath, select, zoom} from 'd3';
 
-	let el
-	let countyName
-	let countyNames = []
-	let testT = [1,2,3]
+	const data = jsonData;
+	let countyNames = [];
+	let countyName = '';
+	let streak = 0;
 
-	function mouseoverLogic(e, d) {
-		d3.select(d)
-		if (countyName == d.properties.name) {
-			alert("Correct!", countyName, d.properties.name)
+	let baseSvg;
+	let zoomResult;
+	let width, height;
+	let geoGenerator;
+	// let projection = d3.geoOrthographic()
+	let projection = geoMercator()
+
+	function mouseclickLogic(feature) {
+		let guessText
+		if (countyName === feature.properties.sovereignt) {
+			streak += 1
+			guessText = "Correct!, ";
+		} else {
+			streak -= 1
+			guessText = "Incorrect, ";
 		}
-		countyName = generateName()
+		streak = Math.max(streak, 0);
+		alert(guessText + countyName);
+		countyName = getNewCountry();
 	}
 
-	function generateName() {
+	function getNewCountry() {
 		return countyNames[Math.floor(Math.random() * countyNames.length)]
 	}
 
+	$: {
+		projection.fitSize([width, height], data);
+		geoGenerator = geoPath().projection(projection);
+	}
+
 	onMount(() => {
-		d3.json('data/ne_50m_admin_countries.geo.json').then(function(bb) {
-			for (let i = 0; i < bb.features.length; i++) {
-				countyNames = [...countyNames, bb.features[i].properties.sovereignt]
-			}
-			countyName = generateName()
-			let width = window.innerWidth;
-			let height = window.innerHeight;
-			// let projection = d3.geoOrthographic()
-			let projection = d3.geoMercator()
-			projection.fitSize([width, height], bb);
-			let geoGenerator = d3.geoPath().projection(projection);
-
-			let svg = d3.select("body").append('svg').attr("width", width).attr("height", height);
-
-			svg.append('g').selectAll('path')
-			.data(bb.features)
-			.join('path')
-			.attr("class", "fill-blue hover:fill-red")
-			.attr('d', geoGenerator)
-			.on("click", mouseoverLogic)
-
-			svg.call(d3.zoom().on("zoom", function () {
-    			svg.select("g").attr("transform", d3.zoomTransform(this))
-  			}))
-		});
+		for (let i = 0; i < data.features.length; i++) {
+			countyNames = [...countyNames, data.features[i].properties.sovereignt]
+		}
+		countyName = getNewCountry();
+		select(baseSvg).call(zoom().on("zoom", (e) => {zoomResult = e.transform;}));
 	});
 </script>
-<!-- {#each countyNames as countyName}
-	<p class="fill-yellow-500 fixed">{countyName}</p>
-{/each} -->
-<p class="fill-yellow-500 fixed">Select: {countyName ? countyName : ''}</p>
-<div bind:this={el} class="chart"></div>
+
+<svelte:window bind:innerWidth={width} bind:innerHeight={height} ></svelte:window>
+
+<div class="flex justify-center">
+	<div class="fixed bg-yellow-400/80 rounded-xl px-2 py-1 mt-2 text-center pointer-events-none text-black-900 text-lg">
+		<p class="">Find: {countyName}</p>
+		<p class="">Current streak: {streak}</p>
+	</div>
+</div>
+<svg {width} {height} bind:this={baseSvg} class="bg-blue-300 scroll">
+	<g transform={zoomResult}>
+		{#each data.features as feature}
+			<path 
+				class="fill-green-500 hover:fill-green-600/90" 
+				d={!geoGenerator(feature).includes("NaN") ? geoGenerator(feature) : ""} 
+				on:click={() => {mouseclickLogic(feature)}}>
+			</path>
+		{/each}
+	</g>
+</svg>
 
 <style>
-	:global(.fill-blue) {
-		fill: darkslateblue;
-	}
-	:global(.hover\:fill-red:hover) {
-		fill: red;
+	:root::-webkit-scrollbar {
+		display: none;
+		width: 0;
+		height: 0;
 	}
 </style>
