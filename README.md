@@ -1,3 +1,3 @@
 # Country Game
 
-Built using Svelte, Tailwind
+Built using SvelteKit, D3, Windi CSS.
